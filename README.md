@@ -112,7 +112,7 @@ import (
 
 -------------------------
 
-### 日志打印
+## 日志打印
 
 使用fixture logger中的Log/Debug/Info/Warn/Error方法打印日志，如下
 
@@ -156,7 +156,7 @@ func (g *MyFixture) TestB() {
 
 必须调用Msg或Msgf才能输出！
 
-### 并行执行
+## 并行执行
 
 默认情况下，所有fixture的方法都会并行运行，因为它们应该是独立的，但如果由于某种原因有需要按顺序运行fixture，可以向`Run()`
 方法传入参数`gunit.Options.SequentialTestCases()`，例如在下面的例子中，这样fixture中的Test*方法将会按照ASCII码顺序执行。
