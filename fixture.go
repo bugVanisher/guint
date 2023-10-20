@@ -16,32 +16,22 @@ import (
 
 // Fixture keeps track of test status (failed, passed, skipped) and
 // handles custom logging for xUnit style tests as an embedded field.
-// The Fixture manages an instance of *testing.T. Certain methods
-// defined herein merely forward to calls on the *testing.T:
-//
-//   - Fixture.Error(...) ----> *testing.T.Error
-//   - Fixture.Errorf(...) ---> *testing.T.Errorf
-//   - Fixture.Print(...) ----> *testing.T.Log or fmt.Print
-//   - Fixture.Printf(...) ---> *testing.T.Logf or fmt.Printf
-//   - Fixture.Println(...) --> *testing.T.Log or fmt.Println
-//   - Fixture.Failed() ------> *testing.T.Failed()
-//   - Fixture.fail() --------> *testing.T.Fail()
-//
-// We don't use these methods much, preferring instead to lean heavily
-// on Fixture.So and the rich set of should-style assertions provided at
-// github.com/smarty/assertions/should
+// The Fixture itself and it's *testing.T control the test flow.
 type Fixture struct {
 	t               TestingT
 	log             *bytes.Buffer
 	verbose         bool
 	testPackageName string
 	logger          *Logger
+	skipLeftTests   bool
+	finished        bool
+	parent          *Fixture
 }
 
 func newFixture(t TestingT, verbose bool, pkgName string) *Fixture {
 	t.Helper()
 
-	return &Fixture{t: t, verbose: verbose, log: &bytes.Buffer{}, testPackageName: pkgName}
+	return &Fixture{t: t, verbose: verbose, log: &bytes.Buffer{}, testPackageName: pkgName, skipLeftTests: false}
 }
 
 // T exposes the TestingT (*testing.T) instance.
@@ -50,10 +40,11 @@ func (f *Fixture) T() TestingT { return f.t }
 // Run is analogous to *testing.T.Run and allows for running subtests from
 // test fixture methods (such as for table-driven tests).
 func (f *Fixture) Run(name string, test func(fixture *Fixture)) {
+	pkgName := retrieveTestPackageName()
 	f.t.(*testing.T).Run(name, func(t *testing.T) {
 		t.Helper()
 
-		fixture := newFixture(t, f.verbose, RetrieveTestPackageName())
+		fixture := newFixture(t, f.verbose, pkgName)
 		defer fixture.finalize()
 		test(fixture)
 	})
@@ -96,10 +87,6 @@ func (f *Fixture) AssertDeepEqual(expected, actual interface{}) bool {
 		fmt.Sprintf(comparisonFormat, fmt.Sprintf("%#v", expected), fmt.Sprintf("%#v", actual)))
 }
 
-func (f *Fixture) Print(a ...interface{})                 { fmt.Fprint(f.log, a...) }
-func (f *Fixture) Printf(format string, a ...interface{}) { fmt.Fprintf(f.log, format, a...) }
-func (f *Fixture) Println(a ...interface{})               { fmt.Fprintln(f.log, a...) }
-
 // Write implements io.Writer. There are rare times when this is convenient (debugging via `log.SetOutput(fixture)`).
 func (f *Fixture) Write(p []byte) (int, error) { return f.log.Write(p) }
 func (f *Fixture) Failed() bool                { return f.t.Failed() }
@@ -107,7 +94,7 @@ func (f *Fixture) Name() string                { return f.t.Name() }
 
 func (f *Fixture) fail(failure string) {
 	f.t.Fail()
-	f.Print(reports.FailureReport(failure, reports.StackTrace()))
+	f.t.Log(reports.FailureReport(failure, reports.StackTrace()))
 }
 
 func (f *Fixture) finalize() {
@@ -120,18 +107,37 @@ func (f *Fixture) finalize() {
 	if f.t.Failed() || (f.verbose && f.log.Len() > 0) {
 		f.t.Log("\n" + strings.TrimSpace(f.log.String()) + "\n")
 	}
+	f.finished = true
 }
 func (f *Fixture) recoverPanic(r interface{}) {
 	f.t.Fail()
-	f.Print(reports.PanicReport(r, debug.Stack()))
-}
-
-func (f *Fixture) WithLogger(t TestingT) *Logger {
-	return &Logger{t: t, testPackageName: f.testPackageName}
+	f.t.Log(reports.PanicReport(r, debug.Stack()))
+	f.skipLeftTests = true
 }
 
 func (f *Fixture) GetLogger() *Logger {
 	return &Logger{t: f.t, testPackageName: f.testPackageName}
+}
+
+// FatalStop stop the test right now and the tests behind it will be skipped in SequentialTestCases mode.
+func (f *Fixture) FatalStop(args ...interface{}) {
+	f.skipLeftTests = true
+	if f.finished {
+		f.GetLogger().Error().Msg("[FatalStop]subtest has finished, parent test fail now")
+		f.parent.skipLeftTests = true
+		f.parent.T().(*testing.T).Fatal(args)
+	}
+	f.T().(*testing.T).Fatal(args...)
+}
+
+func (f *Fixture) FatalfStop(format string, args ...interface{}) {
+	f.skipLeftTests = true
+	if f.finished {
+		f.GetLogger().Error().Msg("[FatalStop]subtest has finished, parent test fail now")
+		f.parent.skipLeftTests = true
+		f.parent.T().(*testing.T).Fatalf(format, args...)
+	}
+	f.T().(*testing.T).Fatalf(format, args...)
 }
 
 const comparisonFormat = "Expected: [%s]\nActual:   [%s]"

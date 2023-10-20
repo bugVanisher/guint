@@ -35,7 +35,7 @@ func (f *Logger) Warn() *zerolog.Event {
 	return log.Warn().Str(Test, f.t.Name()).Str(Package, f.testPackageName)
 }
 
-func (f *Logger) ErrorLog() *zerolog.Event {
+func (f *Logger) Error() *zerolog.Event {
 	return log.Error().Str(Test, f.t.Name()).Str(Package, f.testPackageName)
 }
 
@@ -43,7 +43,7 @@ func (f *Logger) Description(desc string) {
 	f.Log().Str(Title, desc).Msg("")
 }
 
-func RetrieveTestPackageName() string {
+func retrieveTestPackageName() string {
 	start := 0
 	pc, file, _, _ := runtime.Caller(start)
 	_, fileName := path.Split(file)

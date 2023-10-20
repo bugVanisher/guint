@@ -10,7 +10,7 @@ import (
 )
 
 // Run receives an instance of a struct that embeds *Fixture.
-// The struct definition may include Setup*, Teardown*, and Test*
+// The struct definition may include Setup*, Teardown*, FixtureSetup*, FixtureTeardown* and Test*
 // methods which will be run as an xUnit-style test fixture.
 func Run(fixture interface{}, t *testing.T, options ...option) {
 	t.Helper()
@@ -18,7 +18,8 @@ func Run(fixture interface{}, t *testing.T, options ...option) {
 	if strings.Contains(runtime.Version(), "go1.14") {
 		options = allSequentialForGo1Dot14(options)
 	}
-	run(fixture, t, newConfig(options...))
+	pkgName := retrieveTestPackageName()
+	run(fixture, t, newConfig(options...), pkgName)
 }
 
 func allSequentialForGo1Dot14(options []option) []option {
@@ -27,21 +28,7 @@ func allSequentialForGo1Dot14(options []option) []option {
 	return append(options, Options.AllSequential())
 }
 
-// RunSequential (like Run) receives an instance of a struct that embeds *Fixture.
-// The fixture is run in much the same way, except that it will not be run in
-// parallel with other fixtures in the same package, nor will test cases of the
-// corresponding fixture be run in parallel with each other.
-//
-// # Deprecated
-//
-// Use Run(fixture, t, Options.AllSequential()) instead.
-func RunSequential(fixture interface{}, t *testing.T) {
-	t.Helper()
-
-	Run(fixture, t, Options.AllSequential())
-}
-
-func run(fixture interface{}, t *testing.T, config configuration) {
+func run(fixture interface{}, t *testing.T, config configuration, pkgName string) {
 	t.Helper()
 
 	ensureEmbeddedFixture(fixture, t)
@@ -49,7 +36,7 @@ func run(fixture interface{}, t *testing.T, config configuration) {
 	_, filename, _, _ := runtime.Caller(2)
 	positions := scan.LocateTestCases(filename)
 
-	runner := newFixtureRunner(fixture, t, config, positions)
+	runner := newFixtureRunner(fixture, t, config, positions, pkgName)
 	runner.ScanFixtureForTestCases()
 	runner.RunTestCases()
 }
@@ -58,7 +45,7 @@ func ensureEmbeddedFixture(fixture interface{}, t TestingT) {
 	fixtureType := reflect.TypeOf(fixture)
 	embedded, _ := fixtureType.Elem().FieldByName("Fixture")
 	if embedded.Type != embeddedGoodExample.Type {
-		t.Fatalf("Type (%v) lacks embedded *gunit.Fixture.", fixtureType)
+		t.(*testing.T).Fatalf("Type (%v) lacks embedded *gunit.Fixture.", fixtureType)
 	}
 }
 

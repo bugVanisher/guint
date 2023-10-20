@@ -20,6 +20,7 @@ type testCase struct {
 	outerFixture    reflect.Value
 	positions       scan.TestCasePositions
 	testPackageName string
+	parentFixture   *Fixture
 }
 
 func newTestCase(methodIndex int, method fixtureMethodInfo, config configuration, positions scan.TestCasePositions) *testCase {
@@ -33,11 +34,12 @@ func newTestCase(methodIndex int, method fixtureMethodInfo, config configuration
 	}
 }
 
-func (this *testCase) Prepare(setup, teardown int, outerFixture reflect.Value, pkgName string) {
+func (this *testCase) Prepare(setup, teardown int, outerFixture reflect.Value, pkgName string, parentFixture *Fixture) {
 	this.setup = setup
 	this.teardown = teardown
 	this.outerFixture = outerFixture
 	this.testPackageName = pkgName
+	this.parentFixture = parentFixture
 }
 
 func (this *testCase) Run(t *testing.T) {
@@ -73,6 +75,7 @@ func (this *testCase) run(innerT *testing.T) {
 }
 func (this *testCase) initializeFixture(innerT *testing.T) {
 	this.innerFixture = newFixture(innerT, testing.Verbose(), this.testPackageName)
+	this.innerFixture.parent = this.parentFixture
 	if this.parallel {
 		// new outerFixture in every parallel test
 		oldOuterFixture := this.outerFixture

@@ -296,9 +296,6 @@ func TestFixturePrinting(t *testing.T) {
 
 	test := Setup(true)
 
-	test.fixture.Print("Print")
-	test.fixture.Println("Println")
-	test.fixture.Printf("Printf")
 	test.fixture.finalize()
 
 	output := test.out.String()
@@ -350,7 +347,7 @@ func TestFailed(t *testing.T) {
 
 func TestRunSubTests(t *testing.T) {
 	counter := int32(0)
-	outer := newFixture(t, true, RetrieveTestPackageName())
+	outer := newFixture(t, true, retrieveTestPackageName())
 	outer.Run("A", func(*Fixture) { atomic.AddInt32(&counter, 1) })
 	outer.Run("B", func(*Fixture) { atomic.AddInt32(&counter, 1) })
 	time.Sleep(time.Millisecond)
@@ -372,7 +369,7 @@ func Setup(verbose bool) *FixtureTestState {
 	this := &FixtureTestState{}
 	this.out = &bytes.Buffer{}
 	this.fakeT = &FakeTestingT{log: this.out}
-	this.fixture = newFixture(this.fakeT, verbose, RetrieveTestPackageName())
+	this.fixture = newFixture(this.fakeT, verbose, retrieveTestPackageName())
 	return this
 }
 
