@@ -5,7 +5,5 @@ type TestingT interface {
 	Helper()
 	Name() string
 	Log(args ...interface{})
-	Fail()
 	Failed() bool
-	Errorf(format string, args ...interface{})
 }

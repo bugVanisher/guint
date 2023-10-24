@@ -47,6 +47,8 @@ type fixtureRunner struct {
 	tests           []*testCase
 	positions       scan.TestCasePositions
 	packageName     string
+	skipLeftTests   bool
+	skipChannel     chan bool
 }
 
 func (this *fixtureRunner) ScanFixtureForTestCases() {
@@ -77,13 +79,27 @@ func (this *fixtureRunner) buildTestCase(methodIndex int, method fixtureMethodIn
 	return newTestCase(methodIndex, method, this.config, this.positions)
 }
 
+func (this *fixtureRunner) skipLeftTestsLoop() {
+	for {
+		select {
+		case skip := <-this.skipChannel:
+			this.skipLeftTests = skip
+		default:
+
+		}
+	}
+}
+
 func (this *fixtureRunner) RunTestCases() {
 	this.outerT.Helper()
 
 	// Init Fixture for fixtureSetup and fixtureTeardown
-	tmpFixture := newFixture(this.outerT, testing.Verbose(), this.packageName)
+	this.skipChannel = make(chan bool)
+	defer close(this.skipChannel)
+	go this.skipLeftTestsLoop()
+	tmpFixture := newFixture(this.outerT, testing.Verbose(), this.packageName, this.skipChannel)
+	defer this.leftTestsHandler()
 	this.setInnerFixture(tmpFixture)
-	defer this.skipLeftTests(tmpFixture)
 	defer tmpFixture.finalize()
 	defer this.runFixtureTeardown()
 	// Start goroutine to listen for SIGINT signal
@@ -106,7 +122,7 @@ func (this *fixtureRunner) RunTestCases() {
 		this.outerT.Skipf("Skip this Fixture:(%v)", this.fixtureType)
 	} else {
 		if len(this.tests) > 0 {
-			this.runTestCases(tmpFixture)
+			this.runTestCases()
 		} else {
 			this.outerT.Skipf("Fixture (%v) has no test cases.", this.fixtureType)
 		}
@@ -116,20 +132,18 @@ func (this *fixtureRunner) RunTestCases() {
 
 }
 
-func (this *fixtureRunner) runTestCases(parentFixture *Fixture) {
+func (this *fixtureRunner) runTestCases() {
 	this.outerT.Helper()
 	runCases := func(t *testing.T) {
-		isStopSequential := false
 		lastRunIndex := 0
 		for _, test := range this.tests {
 			lastRunIndex++
-			if isStopSequential || parentFixture.skipLeftTests {
+			if this.skipLeftTests {
 				t.Run(test.description, test.skip)
 				continue
 			}
-			test.Prepare(this.setup, this.teardown, this.fixture, this.packageName, parentFixture)
+			test.Prepare(this.setup, this.teardown, this.fixture, this.packageName, this.skipChannel)
 			test.Run(t)
-			isStopSequential = test.innerFixture.skipLeftTests
 		}
 		this.tests = this.tests[lastRunIndex:]
 	}
@@ -165,10 +179,11 @@ func (this *fixtureRunner) setInnerFixture(innerFixture *Fixture) {
 	this.fixture.Elem().FieldByName("Fixture").Set(reflect.ValueOf(innerFixture))
 }
 
-func (this *fixtureRunner) skipLeftTests(innerFixture *Fixture) {
-	if innerFixture.skipLeftTests {
+func (this *fixtureRunner) leftTestsHandler() {
+	if this.skipLeftTests {
 		for _, test := range this.tests {
 			this.outerT.Run(test.description, test.skip)
 		}
+		this.outerT.Fail()
 	}
 }

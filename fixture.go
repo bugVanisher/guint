@@ -23,15 +23,14 @@ type Fixture struct {
 	verbose         bool
 	testPackageName string
 	logger          *Logger
-	skipLeftTests   bool
 	finished        bool
-	parent          *Fixture
+	skipLeftTests   chan bool
 }
 
-func newFixture(t TestingT, verbose bool, pkgName string) *Fixture {
+func newFixture(t TestingT, verbose bool, pkgName string, skipLeftTests chan bool) *Fixture {
 	t.Helper()
 
-	return &Fixture{t: t, verbose: verbose, log: &bytes.Buffer{}, testPackageName: pkgName, skipLeftTests: false}
+	return &Fixture{t: t, verbose: verbose, log: &bytes.Buffer{}, testPackageName: pkgName, skipLeftTests: skipLeftTests}
 }
 
 // T exposes the TestingT (*testing.T) instance.
@@ -44,7 +43,7 @@ func (f *Fixture) Run(name string, test func(fixture *Fixture)) {
 	f.t.(*testing.T).Run(name, func(t *testing.T) {
 		t.Helper()
 
-		fixture := newFixture(t, f.verbose, pkgName)
+		fixture := newFixture(t, f.verbose, pkgName, f.skipLeftTests)
 		defer fixture.finalize()
 		test(fixture)
 	})
@@ -93,7 +92,7 @@ func (f *Fixture) Failed() bool                { return f.t.Failed() }
 func (f *Fixture) Name() string                { return f.t.Name() }
 
 func (f *Fixture) fail(failure string) {
-	f.t.Fail()
+	f.t.(*testing.T).Fail()
 	f.t.Log(reports.FailureReport(failure, reports.StackTrace()))
 }
 
@@ -110,9 +109,9 @@ func (f *Fixture) finalize() {
 	f.finished = true
 }
 func (f *Fixture) recoverPanic(r interface{}) {
-	f.t.Fail()
+	f.t.(*testing.T).Fail()
 	f.t.Log(reports.PanicReport(r, debug.Stack()))
-	f.skipLeftTests = true
+	f.skipLeftTests <- true
 }
 
 func (f *Fixture) GetLogger() *Logger {
@@ -121,23 +120,33 @@ func (f *Fixture) GetLogger() *Logger {
 
 // FatalStop stop the test right now and the tests behind it will be skipped in SequentialTestCases mode.
 func (f *Fixture) FatalStop(args ...interface{}) {
-	f.skipLeftTests = true
+	f.skipLeftTests <- true
 	if f.finished {
-		f.GetLogger().Error().Msg("[FatalStop]subtest has finished, parent test fail now")
-		f.parent.skipLeftTests = true
-		f.parent.T().(*testing.T).Fatal(args)
+		return
 	}
 	f.T().(*testing.T).Fatal(args...)
 }
 
 func (f *Fixture) FatalfStop(format string, args ...interface{}) {
-	f.skipLeftTests = true
+	f.skipLeftTests <- true
 	if f.finished {
-		f.GetLogger().Error().Msg("[FatalStop]subtest has finished, parent test fail now")
-		f.parent.skipLeftTests = true
-		f.parent.T().(*testing.T).Fatalf(format, args...)
+		return
 	}
 	f.T().(*testing.T).Fatalf(format, args...)
+}
+
+func (f *Fixture) Fail() {
+	if f.finished {
+		return
+	}
+	f.t.(*testing.T).Fail()
+}
+
+func (f *Fixture) Errorf(format string, args ...interface{}) {
+	if f.finished {
+		return
+	}
+	f.t.(*testing.T).Errorf(format, args...)
 }
 
 const comparisonFormat = "Expected: [%s]\nActual:   [%s]"
