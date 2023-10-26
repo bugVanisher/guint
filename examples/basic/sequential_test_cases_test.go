@@ -1,4 +1,4 @@
-package examples
+package basic
 
 import (
 	"testing"
@@ -19,6 +19,7 @@ type HowToRegisterAllTestCasesAsSequential struct {
 func (this *HowToRegisterAllTestCasesAsSequential) TestTestsOnThisFixtureWillNOTBeRunInParallelWithEachOther() {
 }
 
-func (this *HowToRegisterAllTestCasesAsSequential) TestA() {}
+func (this *HowToRegisterAllTestCasesAsSequential) TestA() {
+}
 func (this *HowToRegisterAllTestCasesAsSequential) TestB() {}
 func (this *HowToRegisterAllTestCasesAsSequential) TestC() {}
