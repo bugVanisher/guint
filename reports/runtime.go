@@ -45,8 +45,8 @@ func (frame Frame) isFromStandardLibrary() bool {
 }
 
 func (frame Frame) isFromGunit() bool {
-	const gunitBasicExamples = "github.com/bugVanisher/gunit/basic_examples"
-	const gunitAdvancedExamples = "github.com/bugVanisher/gunit/examples"
+	const gunitBasicExamples = "github.com/bugVanisher/gunit/examples/basic"
+	const gunitAdvancedExamples = "github.com/bugVanisher/gunit/examples/advanced"
 	const gunitFolder = "github.com/bugVanisher/gunit"
 	const goModuleVersionSeparator = "@" // Go module path w/ '@' separator example:
 	// /Users/mike/go/pkg/mod/github.com/bugVanisher/gunit@v1.0.1-0.20190705210239-badfae8b004a/reports/failure_report.go:23

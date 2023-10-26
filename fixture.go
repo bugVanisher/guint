@@ -149,6 +149,13 @@ func (f *Fixture) Errorf(format string, args ...interface{}) {
 	f.t.(*testing.T).Errorf(format, args...)
 }
 
+func (f *Fixture) SkipNow() {
+	if f.finished {
+		return
+	}
+	f.t.(*testing.T).SkipNow()
+}
+
 const comparisonFormat = "Expected: [%s]\nActual:   [%s]"
 
 // assertion is a copy of github.com/smarty/assertions.assertion.

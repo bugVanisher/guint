@@ -25,7 +25,7 @@ func Run(fixture interface{}, t *testing.T, options ...option) {
 func allSequentialForGo1Dot14(options []option) []option {
 	// HACK to accommodate for https://github.com/bugVanisher/gunit/issues/28
 	// Also see: https://github.com/golang/go/issues/38050
-	return append(options, Options.AllSequential())
+	return append(options, Options.SequentialTestCases())
 }
 
 func run(fixture interface{}, t *testing.T, config configuration, pkgName string) {

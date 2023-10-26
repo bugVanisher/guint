@@ -34,18 +34,11 @@ func TestConfigOptions(t *testing.T) {
 
 	assert.AssertDeepEqual(
 		configuration{
-			SequentialTestCases: true,
-		},
-		newConfig(Options.AllSequential()),
-	)
-
-	assert.AssertDeepEqual(
-		configuration{
 			SequentialTestCases:  true,
 			SkippedTestCases:     true,
 			LongRunningTestCases: true,
 		},
-		newConfig(Options.AllSequential(), Options.SkipAll(), Options.LongRunning()),
+		newConfig(Options.SequentialTestCases(), Options.SkipAll(), Options.LongRunning()),
 	)
 }
 

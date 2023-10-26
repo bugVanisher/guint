@@ -40,15 +40,6 @@ func (singleton) SequentialTestCases() option {
 	}
 }
 
-// AllSequential() has the combined effect of passing the
-// following options to gunit.Run(...):
-// SequentialTestCases
-func (singleton) AllSequential() option {
-	return Options.composite(
-		Options.SequentialTestCases(),
-	)
-}
-
 // composite allows graceful chaining of options.
 func (singleton) composite(options ...option) option {
 	return func(this *configuration) {

@@ -119,7 +119,9 @@ func (this *fixtureRunner) RunTestCases() {
 	}
 
 	if this.config.SkippedTestCases {
-		this.outerT.Skipf("Skip this Fixture:(%v)", this.fixtureType)
+		for _, test := range this.tests {
+			this.outerT.Run(test.description, test.skip)
+		}
 	} else {
 		if len(this.tests) > 0 {
 			this.runTestCases()
